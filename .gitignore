@@ -1,0 +1,47 @@
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environment directories
+venv/
+env/
+.venv/
+.env/
+
+# Ignore configuration files
+*.tmp
+*.log
+
+# Ignore compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE/editor specific files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Ignore build artifacts
+build/
+dist/
+*.spec
+
+# Ignore icon files
+icon.ico
+
+# Ignore any other temporary files
+*.bak
+*.swp
+*.swo
+*.tmp
+*.temp
+*.~
+
+.clippy_key
+clippy_config.json

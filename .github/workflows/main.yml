@@ -31,4 +31,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clippy-ai
-          path: dist/
+          path: dist/*.exe
+
+      - name: Create and Upload Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

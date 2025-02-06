@@ -28,7 +28,7 @@ jobs:
         run: pyinstaller --clean clippy.spec
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: clippy-ai
           path: dist/

@@ -30,10 +30,10 @@ Thumbs.db
 # Ignore build artifacts
 build/
 dist/
-*.spec
+# *.spec
 
 # Ignore icon files
-icon.ico
+# icon.ico
 
 # Ignore any other temporary files
 *.bak

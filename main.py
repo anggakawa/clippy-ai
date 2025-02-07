@@ -12,6 +12,12 @@ import json
 from tkinter import messagebox
 from cryptography.fernet import Fernet
 import threading
+from PIL import ImageGrab
+import io
+import base64
+import tempfile
+from datetime import datetime
+
 
 # Add this near the top of your file, after the imports
 AVAILABLE_MODELS = [
@@ -262,39 +268,9 @@ def show_token_dialog():
     y = (dialog.winfo_screenheight() // 2) - (height // 2)
     dialog.geometry(f"+{x}+{y}")
 
-def create_image():
-    """Load and prepare custom 64x64 PNG as system tray icon"""
-    try:
-        # Load your image file (replace with your actual image path)
-        image = Image.open("icon.png")
-        
-        # Convert to RGBA if not already (for transparency support)
-        image = image.convert("RGBA")
-        
-        # Resize to exactly 64x64 pixels using Lanczos filter
-        if image.size != (64, 64):
-            image = image.resize((64, 64), Image.Resampling.LANCZOS)
-            
-        # Create circular mask if needed (optional)
-        mask = Image.new('L', (64, 64), 0)
-        draw = ImageDraw.Draw(mask) 
-        draw.ellipse((0, 0, 64, 64), fill=255)
-        
-        # Apply mask if you want circular format (optional)
-        image.putalpha(mask)
-        
-        return image
-    except Exception as e:
-        print(f"Error loading custom icon: {e}")
-        # Fallback to default blue square
-        fallback = Image.new('RGB', (64, 64), (255, 255, 255))
-        draw = ImageDraw.Draw(fallback)
-        draw.rectangle((16, 16, 48, 48), fill=(0, 0, 255))
-        return fallback
-
 def setup_tray_icon():
     global tray_icon
-    image = create_image()
+    image = Image.open("icon.ico")
     menu = (
         item('Configure Token', lambda: root.after(0, show_token_dialog)),
         item('Configure Clippy', lambda: root.after(0, show_model_dialog)),
@@ -311,6 +287,50 @@ def get_selected_text():
     pyperclip.copy(original_clipboard)
     return selected_text
 
+# TODO: implement image grabbing
+def get_selected_content():
+    """Get either selected text or image from clipboard"""
+    # First try to get image from clipboard
+    try:
+        image = ImageGrab.grabclipboard()
+        if image:
+            # Save image to temporary file
+            temp_dir = tempfile.gettempdir()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            temp_path = f"{temp_dir}/clippy_image_{timestamp}.png"
+            image.save(temp_path, 'PNG')
+            
+            # Convert image to base64 for API
+            with open(temp_path, 'rb') as img_file:
+                base64_image = base64.b64encode(img_file.read()).decode('utf-8')
+            
+            # Clean up temp file
+            os.remove(temp_path)
+            
+            return {
+                'type': 'image',
+                'content': base64_image,
+                'display': image
+            }
+    except Exception as e:
+        print(f"Error handling image: {e}")
+
+    # If no image, try to get text
+    original_clipboard = pyperclip.paste()
+    keyboard.send('ctrl+c')
+    time.sleep(0.1)
+    selected_text = pyperclip.paste().strip()
+    pyperclip.copy(original_clipboard)
+    
+    if selected_text:
+        return {
+            'type': 'text',
+            'content': selected_text,
+            'display': selected_text
+        }
+    
+    return None
+
 def show_popup(text):
     conversation_history = []  # Store conversation history
     
@@ -322,12 +342,6 @@ def show_popup(text):
             return
 
         user_questions = ask_box.get("0.0", "end").strip()
-        
-        # Disable the send button while processing
-        send_button.configure(state="disabled")
-        result_text.configure(state="normal")
-        result_text.insert("end", "\n\nProcessing...")
-        result_text.configure(state="disabled")
         
         def make_api_request():
             try:
@@ -362,52 +376,64 @@ def show_popup(text):
                 
                 payload = {
                     "model": config.get("model", DEFAULT_MODEL),
-                    "messages": messages
+                    "messages": messages,
+                    "stream": True  # Enable streaming
                 }
                 
-                resp = requests.post(
+                # Make streaming request
+                with requests.post(
                     url="https://openrouter.ai/api/v1/chat/completions",
                     headers=headers,
                     json=payload,
-                    timeout=30
-                )
-                
-                if resp.status_code == 401:
-                    popup.after(0, lambda: messagebox.showerror("Error", "Invalid API token. Please reconfigure."))
-                    popup.after(0, show_token_dialog)
-                    return
-                
-                resp.raise_for_status()
-                
-                response_data = resp.json()
-                if not response_data.get("choices"):
-                    raise ValueError("No choices in response")
+                    timeout=30,
+                    stream=True
+                ) as resp:
                     
-                reply = response_data["choices"][0]["message"]["content"]
-                
-                # Update conversation history
-                conversation_history.append({"role": "user", "content": user_questions})
-                conversation_history.append({"role": "assistant", "content": reply})
-                
-                def update_result():
-                    result_text.configure(state="normal")
+                    if resp.status_code == 401:
+                        popup.after(0, lambda: messagebox.showerror("Error", "Invalid API token. Please reconfigure."))
+                        popup.after(0, show_token_dialog)
+                        return
                     
-                    # Get all content and split into lines
-                    content = result_text.get("1.0", "end-1c")
-                    lines = content.split('\n')
+                    resp.raise_for_status()
+                    accumulated_message = ""
+
+                    def update_text_widget(new_text):
+                        result_text.configure(state="normal")
+                        result_text.insert("end", new_text)
+                        result_text.see("end")
+                        result_text.configure(state="disabled")
+
+                    # Insert the user's question first
+                    popup.after(0, lambda: update_text_widget(f"\n\nYou: {user_questions}\nAI: "))
+
+                    for line in resp.iter_lines():
+                        if line:
+                            try:
+                                line = line.decode('utf-8')
+                                if line.startswith('data: '):
+                                    line = line[6:]  # Remove 'data: ' prefix
+                                    if line.strip() == '[DONE]':
+                                        break
+                                    
+                                    json_data = json.loads(line)
+                                    if 'choices' in json_data:
+                                        delta = json_data['choices'][0].get('delta', {})
+                                        if 'content' in delta:
+                                            content = delta['content']
+                                            accumulated_message += content
+                                            popup.after(0, lambda c=content: update_text_widget(c))
+                            except json.JSONDecodeError:
+                                continue
+                            except Exception as e:
+                                print(f"Error processing stream: {e}")
+                                break
+
+                    # Update conversation history after streaming is complete
+                    conversation_history.append({"role": "user", "content": user_questions})
+                    conversation_history.append({"role": "assistant", "content": accumulated_message})
                     
-                    # Remove the "Processing..." line if it exists
-                    if lines and lines[-1].strip() == "Processing...":
-                        # Delete the last line containing "Processing..."
-                        result_text.delete("end-2l", "end-1c")
-                    
-                    # Add the new message
-                    result_text.insert("end", f"\n\nYou: {user_questions}\nAI: {reply}")
-                    result_text.see("end")  # Scroll to the bottom
-                    result_text.configure(state="disabled")
-                    ask_box.delete("0.0", "end")  # Clear the question box
-                
-                popup.after(0, update_result)
+                    # Clear the question box
+                    popup.after(0, lambda: ask_box.delete("0.0", "end"))
                 
             except Exception as e:
                 error_msg = f"Error: {str(e)}"

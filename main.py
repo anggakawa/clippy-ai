@@ -17,9 +17,11 @@ import threading
 AVAILABLE_MODELS = [
     "deepseek/deepseek-chat",
     "anthropic/claude-3.5-sonnet",
+    "openai/chatgpt-latest",
     "openai/gpt-4o-mini",
     "google/gemini-flash-1.5",
     "deepseek/deepseek-r1",
+    'custom'
 ]
 
 DEFAULT_MODEL = "deepseek/deepseek-chat"
@@ -103,10 +105,10 @@ def load_config():
         show_toast(f"Security error: {str(e)}", is_error=True)
         return {"api_token": None, "model": DEFAULT_MODEL}
 
-def save_config(token, model=None):
-    """Save configuration with encrypted token and model selection"""
+def save_config(token, model=None, shortcut=None):
+    """Save configuration with encrypted token, model selection, and shortcut"""
     try:
-        # Load existing config to preserve model if not changing
+        # Load existing config to preserve model and shortcut if not changing
         existing_config = load_config()
         
         cipher_suite = Fernet(get_encryption_key())
@@ -114,7 +116,8 @@ def save_config(token, model=None):
         
         config = {
             "encrypted_token": encrypted_token.decode(),
-            "model": model if model else existing_config.get("model", DEFAULT_MODEL)
+            "model": model if model else existing_config.get("model", DEFAULT_MODEL),
+            "shortcut": shortcut if shortcut else existing_config.get("shortcut", "ctrl+shift+'")
         }
         
         # Save with secure permissions using atomic write
@@ -128,10 +131,10 @@ def save_config(token, model=None):
         show_toast(f"Failed to save config: {str(e)}", is_error=True)
 
 def show_model_dialog():
-    """Show model selection dialog using customtkinter"""
+    """Show model and shortcut selection dialog using customtkinter"""
     dialog = ctk.CTkToplevel()
-    dialog.title("AI Model Configuration")
-    dialog.geometry("400x300")
+    dialog.title("AI Model and Shortcut Configuration")
+    dialog.geometry("400x500")
     dialog.attributes('-topmost', True)
     
     label = ctk.CTkLabel(dialog, text="Select AI Model:", wraplength=350)
@@ -144,27 +147,77 @@ def show_model_dialog():
     # Create variable for radio buttons
     selected_model = ctk.StringVar(value=current_model)
     
+    # Create a frame to contain all model-related widgets
+    models_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+    models_frame.pack(fill="x", padx=20)
+    
     # Create radio buttons for each model
     for model in AVAILABLE_MODELS:
         radio = ctk.CTkRadioButton(
-            dialog,
-            text=model,
+            models_frame,
+            text="Custom Model" if model == "custom" else model,
             variable=selected_model,
-            value=model
+            value=model,
+            command=lambda: on_model_selection()
         )
-        radio.pack(pady=5, padx=20, anchor="w")
+        radio.pack(pady=5, anchor="w")
     
-    def save_model():
-        model = selected_model.get()
-        if model:
-            # Save config with existing token and new model
-            save_config(current_config.get("api_token", ""), model)
-            dialog.destroy()
-            messagebox.showinfo("Success", "Model preference saved successfully!")
+    # Create frame for custom model input right after the models list
+    custom_frame = ctk.CTkFrame(models_frame)
+    custom_frame.pack(pady=5)
+    custom_frame.pack_forget()  # Hide initially
+    
+    custom_label = ctk.CTkLabel(custom_frame, text="Enter custom model:")
+    custom_label.pack(side="left", padx=5)
+    custom_model_entry = ctk.CTkEntry(custom_frame, width=200)
+    custom_model_entry.pack(side="left", padx=5)
+    
+    def on_model_selection():
+        if selected_model.get() == "custom":
+            custom_frame.pack(pady=5)
+            if current_model not in AVAILABLE_MODELS:
+                custom_model_entry.delete(0, 'end')
+                custom_model_entry.insert(0, current_model)
         else:
-            messagebox.showerror("Error", "Please select a model")
+            custom_frame.pack_forget()
+    
+    # If current model is custom, select custom radio and show entry
+    if current_model not in AVAILABLE_MODELS:
+        selected_model.set("custom")
+        custom_frame.pack(pady=5)
+        custom_model_entry.insert(0, current_model)
+    
+    # Add shortcut configuration
+    shortcut_label = ctk.CTkLabel(dialog, text="Set Shortcut (e.g., ctrl+shift+'): ", wraplength=350)
+    shortcut_label.pack(pady=10)
+    
+    shortcut_entry = ctk.CTkEntry(dialog, width=350)
+    shortcut_entry.insert(0, current_config.get("shortcut", "ctrl+shift+'"))
+    shortcut_entry.pack(pady=5)
 
-    save_btn = ctk.CTkButton(dialog, text="Save Model", command=save_model)
+    def save_model_and_shortcut():
+        shortcut = shortcut_entry.get().strip()
+        
+        # Get the selected model
+        model = selected_model.get()
+        if model == "custom":
+            custom_model = custom_model_entry.get().strip()
+            if not custom_model:
+                messagebox.showerror("Error", "Please enter a custom model name")
+                return
+            model = custom_model
+        
+        if model and shortcut:
+            try:
+                save_config(current_config.get("api_token", ""), model, shortcut)
+                dialog.destroy()
+                messagebox.showinfo("Success", "Preferences saved successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
+        else:
+            messagebox.showerror("Error", "Please select a model and enter a valid shortcut")
+
+    save_btn = ctk.CTkButton(dialog, text="Save Preferences", command=save_model_and_shortcut)
     save_btn.pack(pady=20)
     
     # Center dialog
@@ -244,7 +297,7 @@ def setup_tray_icon():
     image = create_image()
     menu = (
         item('Configure Token', lambda: root.after(0, show_token_dialog)),
-        item('Select Model', lambda: root.after(0, show_model_dialog)),
+        item('Configure Clippy', lambda: root.after(0, show_model_dialog)),
         item('Exit', lambda icon, item: exit_app()),
     )
     tray_icon = Icon("Clippy AI", image, "Clippy AI", menu)
@@ -434,11 +487,16 @@ if __name__ == "__main__":
     root = ctk.CTk()
     root.withdraw()  # Hide the main window
 
+    # Load the current configuration to get the shortcut
+    config = load_config()
+    shortcut = config.get("shortcut", "ctrl+shift+'")
+
     # Start system tray icon in a daemon thread
     tray_thread = threading.Thread(target=setup_tray_icon, daemon=True)
     tray_thread.start()
 
-    keyboard.add_hotkey('ctrl+shift+t', on_hotkey, suppress=True)
+    # Add hotkey for the user-defined shortcut
+    keyboard.add_hotkey(shortcut, on_hotkey, suppress=True)
     keyboard.add_hotkey("ctrl+shift+q", exit_app)
 
     root.mainloop()

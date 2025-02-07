@@ -18,8 +18,9 @@ Chat with your AI effortlessly
    - Follow the on-screen instructions to complete the configuration.
 
 4. **Hotkeys**:
-   - Use the hotkey `Ctrl+Shift+T` to trigger the AI interaction with the selected text.
+   - Use the hotkey `Ctrl+Shift+'` to trigger the AI interaction with the selected text.
    - Use the hotkey `Ctrl+Shift+Q` to exit the application quickly.
+   - You also can change the hotkey in configurations!
 
 5. **Interacting with the AI**:
    - After selecting text and using the hotkey, a pop-up window will appear where you can type your questions and receive responses from the AI.

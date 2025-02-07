@@ -4,9 +4,6 @@ on:
   push:
     tags:
       - 'v*'  # Trigger on version tags like v1.0.0
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 jobs:
   build:
@@ -30,7 +27,6 @@ jobs:
         run: pyinstaller --clean clippy.spec
 
       - name: Create and Upload Release
-        if: startsWith(github.ref, 'refs/tags/')  # Only run on tag pushes
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*.exe

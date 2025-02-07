@@ -268,9 +268,51 @@ def show_token_dialog():
     y = (dialog.winfo_screenheight() // 2) - (height // 2)
     dialog.geometry(f"+{x}+{y}")
 
+def create_default_icon():
+    """Create a default icon with a simple whale design"""
+    size = (64, 64)
+    # Create transparent background
+    image = Image.new('RGBA', size, color=(0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    
+    # Colors
+    whale_color = '#2196F3'  # Blue color for the whale
+    eye_color = 'white'
+    
+    # Main whale body (rounded rectangle)
+    body_points = [
+        (15, 20),  # Top left
+        (50, 20),  # Top right
+        (50, 44),  # Bottom right
+        (15, 44)   # Bottom left
+    ]
+    draw.polygon(body_points, fill=whale_color)
+    
+    # Whale tail
+    tail_points = [
+        (50, 25),   # Base of tail
+        (58, 15),   # Top tip
+        (58, 35),   # Bottom tip
+        (50, 39)    # Bottom of tail base
+    ]
+    draw.polygon(tail_points, fill=whale_color)
+    
+    # Whale spout
+    spout_points = [
+        (20, 20),   # Base
+        (15, 10),   # Left tip
+        (25, 10)    # Right tip
+    ]
+    draw.polygon(spout_points, fill=whale_color)
+    
+    # Eye
+    draw.ellipse([22, 28, 26, 32], fill=eye_color)
+    
+    return image
+
 def setup_tray_icon():
     global tray_icon
-    image = Image.open("icon.ico")
+    image = create_default_icon()
     menu = (
         item('Configure Token', lambda: root.after(0, show_token_dialog)),
         item('Configure Clippy', lambda: root.after(0, show_model_dialog)),

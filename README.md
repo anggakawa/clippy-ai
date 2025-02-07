@@ -2,6 +2,10 @@
 
 Chat with your AI effortlessly
 
+## Disclaimer
+
+This application uses OpenRouter for AI interactions. Users must have a valid API key to access the AI services. Please ensure you have obtained an API key and configured it within the application to use Clippy AI effectively.
+
 ## How to use
 
 1. **System Tray Icon**:

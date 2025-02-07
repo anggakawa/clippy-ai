@@ -17,7 +17,7 @@ import threading
 AVAILABLE_MODELS = [
     "deepseek/deepseek-chat",
     "anthropic/claude-3.5-sonnet",
-    "openai/chatgpt-latest",
+    "openai/chatgpt-4o-latest",
     "openai/gpt-4o-mini",
     "google/gemini-flash-1.5",
     "deepseek/deepseek-r1",

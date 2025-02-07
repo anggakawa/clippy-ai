@@ -420,10 +420,9 @@ def show_popup(text):
         # Run API request in a separate thread to prevent GUI freezing
         threading.Thread(target=make_api_request, daemon=True).start()
 
-    # Create popup window and UI elements
     popup = ctk.CTkToplevel(root)
     popup.title("Clippy AI")
-    popup.geometry("600x800")  # Made larger to accommodate conversation history
+    popup.geometry("600x500")
     popup.attributes('-topmost', True)
     popup.focus_force()
 
@@ -431,39 +430,46 @@ def show_popup(text):
     screen_width = popup.winfo_screenwidth()
     screen_height = popup.winfo_screenheight()
     x = (screen_width - 600) // 2
-    y = (screen_height - 800) // 2
-    popup.geometry(f"600x800+{x}+{y}")
+    y = (screen_height - 500) // 2
+    popup.geometry(f"600x500+{x}+{y}")
+
+    # Configure grid so widgets align and expand properly
+    popup.grid_columnconfigure(0, weight=1)
+    popup.grid_columnconfigure(1, weight=0)
 
     # Selected Text Label
-    selected_text_label = ctk.CTkLabel(popup, text="Selected Text:", font=("Segoe UI", 12, "bold"))
-    selected_text_label.pack(pady=(15, 5), padx=15, anchor="w")
+    selected_label = ctk.CTkLabel(popup, text="Selected Text:", font=("Segoe UI", 12, "bold"))
+    selected_label.grid(row=0, column=0, columnspan=2, padx=15, pady=(15, 5), sticky="w")
 
     # Read-only textbox for selected text
-    selected_text_box = ctk.CTkTextbox(popup, width=550, height=100)
-    selected_text_box.insert("0.0", text)
-    selected_text_box.configure(state="disabled")
-    selected_text_box.pack(pady=(0, 15), padx=15)
-
-    # Conversation History Label
-    history_label = ctk.CTkLabel(popup, text="Conversation:", font=("Segoe UI", 12, "bold"))
-    history_label.pack(pady=(0, 5), padx=15, anchor="w")
-
-    # Scrollable conversation history
-    result_text = ctk.CTkTextbox(popup, width=550, height=400, wrap="word")
-    result_text.pack(pady=(0, 15), padx=15, fill="both", expand=True)
-    result_text.configure(state="disabled")
+    selected_box = ctk.CTkTextbox(popup, width=570, height=80)
+    selected_box.insert("0.0", text)
+    selected_box.configure(state="disabled")
+    selected_box.grid(row=1, column=0, columnspan=2, padx=15, pady=(0, 15), sticky="ew")
 
     # User Questions Label
     questions_label = ctk.CTkLabel(popup, text="Your Question:", font=("Segoe UI", 12, "bold"))
-    questions_label.pack(pady=(0, 5), padx=15, anchor="w")
+    questions_label.grid(row=2, column=0, columnspan=2, padx=15, pady=(0, 5), sticky="w")
 
     # Editable textbox for user questions
-    ask_box = ctk.CTkTextbox(popup, width=550, height=100)
-    ask_box.pack(pady=(0, 15), padx=15)
+    ask_box = ctk.CTkTextbox(popup, width=400, height=50)
+    ask_box.grid(row=3, column=0, padx=(15, 5), pady=(0, 15), sticky="ew")
 
     # Send to AI Button
     send_button = ctk.CTkButton(popup, text="Send to AI", command=send_to_ai)
-    send_button.pack(pady=(0, 15), padx=15)
+    send_button.grid(row=3, column=1, padx=(5, 15), pady=(0, 15), sticky="nsew")
+
+    # Conversation History Label
+    history_label = ctk.CTkLabel(popup, text="Conversation:", font=("Segoe UI", 12, "bold"))
+    history_label.grid(row=4, column=0, columnspan=2, padx=15, pady=(0, 5), sticky="w")
+
+    # Scrollable conversation history textbox
+    result_text = ctk.CTkTextbox(popup, width=570, height=200, wrap="word")
+    result_text.configure(state="disabled")
+    result_text.grid(row=5, column=0, columnspan=2, padx=15, pady=(0, 15), sticky="nsew")
+
+    # Let the conversation history textbox expand with the window
+    popup.grid_rowconfigure(5, weight=1)
 
 def on_hotkey():
     config = load_config()

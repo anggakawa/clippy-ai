@@ -58,8 +58,8 @@ def show_toast(message, is_error=False):
     # Position at bottom right
     screen_width = toast.winfo_screenwidth()
     screen_height = toast.winfo_screenheight()
-    toast_width = 300  # Assuming a fixed width for the toast
-    toast_height = 100  # Assuming a fixed height for the toast
+    toast_width = 300
+    toast_height = 100
     x = (screen_width // 2) - (toast_width // 2)
     y = (screen_height // 2) - (toast_height // 2)
     toast.geometry(f"{toast_width}x{toast_height}+{x}+{y}")
@@ -266,7 +266,7 @@ def create_image():
     """Load and prepare custom 64x64 PNG as system tray icon"""
     try:
         # Load your image file (replace with your actual image path)
-        image = Image.open("icon.png")  # <-- PUT YOUR ACTUAL PATH HERE
+        image = Image.open("icon.png")
         
         # Convert to RGBA if not already (for transparency support)
         image = image.convert("RGBA")
@@ -341,12 +341,15 @@ def show_popup(text):
                     {
                         "role": "system",
                         "content": "You are a helpful AI assistant."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Context: {text}"
                     }
                 ]
+                
+                # Add context only if there's no conversation history
+                if not conversation_history:
+                    messages.append({
+                        "role": "user",
+                        "content": f"Context: {text}"
+                    })
                 
                 # Add conversation history
                 messages.extend(conversation_history)
